@@ -7,6 +7,16 @@ Original file is located at
     https://colab.research.google.com/drive/1E0hAxNZ3uSdNgy9U6N6XvfedYhitnxCX
 """
 
+# Regenerate final output after environment reset
+import os
+from zipfile import ZipFile
+
+# Define the directory for the app
+project_dir = "/mnt/data/credit_dashboard_final"
+os.makedirs(project_dir, exist_ok=True)
+
+# credit_dashboard.py content
+streamlit_code = """
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,15 +25,16 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 import openai
 
-# --- Secure API Key Handling ---
-openai.api_key = st.secrets["openai_api_key"]
+# Secure API key
+try:
+    openai.api_key = st.secrets["openai_api_key"]
+except Exception:
+    openai.api_key = "sk-..."  # Replace with your real key for local dev
 
-
-# --- Page Config and Styling ---
+# Page config and styling
 st.set_page_config(page_title="GenAI Credit Scoring Dashboard", layout="wide", page_icon="📊")
-
 st.markdown(
-    """
+    \"\"\"
     <style>
     .stApp {
         background-image: url("https://images.unsplash.com/photo-1581091870622-1e7d88469d2d?fit=crop&w=1600&q=80");
@@ -38,19 +49,17 @@ st.markdown(
         border-radius: 10px;
     }
     </style>
-    """,
+    \"\"\",
     unsafe_allow_html=True
 )
 
 st.title("📊 GenAI Academic Credit Scoring Dashboard")
 
-# --- File Upload ---
 uploaded_file = st.file_uploader("📁 Upload Your Student Credit CSV", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Generate Creditworthy Label
     if 'Creditworthy' not in df.columns:
         df['Creditworthy'] = (
             (df['GPA'] > 2.5) &
@@ -60,7 +69,6 @@ if uploaded_file:
             (df['FinancialLiteracyScore'] >= 70)
         ).astype(int)
 
-    # Encode categorical features
     df_encoded = pd.get_dummies(df, columns=["Gender", "Race"], drop_first=True)
     base_features = [
         'Age', 'GPA', 'RentPaidOnTime', 'GigIncomeMonthly', 'CreditUtilization(%)',
@@ -69,7 +77,6 @@ if uploaded_file:
     encoded_features = [col for col in df_encoded.columns if col.startswith("Gender_") or col.startswith("Race_")]
     features = base_features + encoded_features
 
-    # Train Logistic Regression
     scaler = StandardScaler()
     X = df_encoded[features]
     y = df_encoded['Creditworthy']
@@ -78,35 +85,32 @@ if uploaded_file:
     model = LogisticRegression(max_iter=1000)
     model.fit(X_scaled, y)
 
-    # Predict
     df['Prediction'] = model.predict(X_scaled)
     df['Confidence'] = (model.predict_proba(X_scaled)[:, 1] * 100).round(2)
 
-    # GPT Summaries and Blockchain Hashes
     summaries = []
     hashes = []
 
     st.subheader("📜 GPT-Generated Credit Summaries")
 
     for i, row in df.iterrows():
-        summary_input = f"""
+        summary_input = f\"\"\"
         Student with GPA {row['GPA']}, credit utilization {row['CreditUtilization(%)']}%,
         and financial literacy score {row['FinancialLiteracyScore']} is predicted to be
         {'CREDITWORTHY' if row['Prediction'] == 1 else 'NOT CREDITWORTHY'} with confidence {row['Confidence']}%.
-        """
+        \"\"\"
         try:
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a credit risk analyst creating summaries."},
-                    {"role": "user", "content": f"Write a professional credit summary:\n{summary_input}"}
+                    {"role": "user", "content": f"Write a professional credit summary:\\n{summary_input}"}
                 ]
             )
             gpt_summary = response['choices'][0]['message']['content'].strip()
         except Exception:
             gpt_summary = summary_input + " [GPT unavailable]"
 
-        # Blockchain-style hash
         hash_string = f"{row['StudentID']}-{row['GPA']}-{row['CreditUtilization(%)']}-{row['FinancialLiteracyScore']}"
         hash_val = hashlib.sha256(hash_string.encode()).hexdigest()
 
@@ -116,7 +120,6 @@ if uploaded_file:
     df['GPT_Summary'] = summaries
     df['Blockchain_Hash'] = hashes
 
-    # Display and Export
     st.dataframe(df[['StudentID', 'Prediction', 'Confidence', 'GPT_Summary', 'Blockchain_Hash']])
 
     csv_export = df.to_csv(index=False).encode('utf-8')
@@ -125,3 +128,22 @@ if uploaded_file:
     st.success("✅ Analysis complete! CSV export is ready.")
 else:
     st.info("Please upload a CSV file to begin.")
+"""
+
+# requirements.txt content
+requirements = "streamlit\npandas\nnumpy\nscikit-learn\nopenai\n"
+
+# Write files
+with open(os.path.join(project_dir, "credit_dashboard.py"), "w") as f:
+    f.write(streamlit_code)
+
+with open(os.path.join(project_dir, "requirements.txt"), "w") as f:
+    f.write(requirements)
+
+# Zip the project
+zip_path = "/mnt/data/credit_dashboard_final_project.zip"
+with ZipFile(zip_path, 'w') as zipf:
+    zipf.write(os.path.join(project_dir, "credit_dashboard.py"), arcname="credit_dashboard.py")
+    zipf.write(os.path.join(project_dir, "requirements.txt"), arcname="requirements.txt")
+
+zip_path
