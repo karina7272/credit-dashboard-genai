@@ -25,11 +25,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 import openai
 
+import openai
+
 # Secure API key
-try:
-    openai.api_key = st.secrets["openai_api_key"]
-except Exception:
-    openai.api_key = "sk-..."  # Replace with your real key for local dev
+openai.api_key = st.secrets["openai_api_key"]
+
+
 
 # Page config and styling
 st.set_page_config(page_title="GenAI Credit Scoring Dashboard", layout="wide", page_icon="📊")
