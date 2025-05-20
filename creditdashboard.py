@@ -16,10 +16,8 @@ from sklearn.preprocessing import StandardScaler
 import openai
 
 # --- Secure API Key Handling ---
-try:
-    openai.api_key = st.secrets["openai_api_key"]
-except Exception:
-    openai.api_key = "sk-..."  # Replace with your actual OpenAI key for local/dev
+openai.api_key = st.secrets["openai_api_key"]
+
 
 # --- Page Config and Styling ---
 st.set_page_config(page_title="GenAI Credit Scoring Dashboard", layout="wide", page_icon="📊")
